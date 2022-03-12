@@ -161,7 +161,7 @@ public class PacketTypeClasses {
                 else {
                     PREFIX = ServerVersion.getNMSDirectory() + ".";
                 }
-                COMMON_PREFIX  = PREFIX + "PacketPlayIn";
+                COMMON_PREFIX = PREFIX + "PacketPlayIn";
                 FLYING = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "Flying");
                 try {
                     POSITION = Class.forName(COMMON_PREFIX + "Position");

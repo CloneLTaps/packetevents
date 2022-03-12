@@ -29,7 +29,6 @@ import io.github.retrooper.packetevents.utils.vector.Vector3i;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

@@ -35,7 +35,6 @@ import io.github.retrooper.packetevents.utils.world.Difficulty;
 import io.github.retrooper.packetevents.utils.world.Dimension;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

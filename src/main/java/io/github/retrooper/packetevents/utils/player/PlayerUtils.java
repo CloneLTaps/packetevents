@@ -20,8 +20,7 @@ package io.github.retrooper.packetevents.utils.player;
 
 import io.github.retrooper.packetevents.PacketEvents;
 import io.github.retrooper.packetevents.packetwrappers.api.SendableWrapper;
-import io.github.retrooper.packetevents.packetwrappers.play.out.entitydestroy.WrappedPacketOutEntityDestroy;
-import io.github.retrooper.packetevents.packetwrappers.play.out.namedentityspawn.WrappedPacketOutNamedEntitySpawn;
+import io.github.retrooper.packetevents.packetwrappers.play.out.blockchange.WrapperPlayServerBlockChange;
 import io.github.retrooper.packetevents.utils.gameprofile.GameProfileUtil;
 import io.github.retrooper.packetevents.utils.gameprofile.WrappedGameProfile;
 import io.github.retrooper.packetevents.utils.geyser.GeyserUtils;
@@ -29,15 +28,14 @@ import io.github.retrooper.packetevents.utils.nms.NMSUtils;
 import io.github.retrooper.packetevents.utils.server.ServerVersion;
 import io.github.retrooper.packetevents.utils.versionlookup.VersionLookupUtils;
 import io.github.retrooper.packetevents.utils.versionlookup.v_1_7_10.SpigotVersionLookup_1_7;
-import org.bukkit.Bukkit;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -219,6 +217,26 @@ public final class PlayerUtils {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+    }
+
+    /**
+     * This only works with 1.8 so be careful! It would be fairly easy to make this compatible with
+     * all version but this is just a little fix which I can use until I switch over to PacketEvents 2.0
+     * -Note by CloneLTaps
+     */
+    @Deprecated
+    public void sendBlockChangePacket(Player player, WrapperPlayServerBlockChange packet) {
+        final Channel channel = (Channel) getChannel(player);
+        packet.prepareForSend();
+
+        if(channel != null && isOpen(channel)) {
+            ByteBuf buf = packet.buffer;
+            channel.writeAndFlush(buf);
+        }
+    }
+
+    private boolean isOpen(Object channel) {
+        return ((Channel) channel).isOpen();
     }
 
     @Deprecated

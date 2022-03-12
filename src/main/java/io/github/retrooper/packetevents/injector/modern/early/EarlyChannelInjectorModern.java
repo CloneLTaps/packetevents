@@ -33,7 +33,6 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginDescriptionFile;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
