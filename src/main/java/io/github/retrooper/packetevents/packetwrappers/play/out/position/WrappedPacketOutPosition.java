@@ -67,6 +67,12 @@ public final class WrappedPacketOutPosition extends WrappedPacket implements Sen
         this.relativeFlags = relativeFlags;
     }
 
+    public WrappedPacketOutPosition(double x, double y, double z, float yaw, float pitch) {
+        this.position = new Vector3d(x, y, z);
+        this.yaw = yaw;
+        this.pitch = pitch;
+    }
+
     public WrappedPacketOutPosition(double x, double y, double z, float yaw, float pitch, Set<PlayerTeleportFlags> relativeFlags, int teleportID) {
         this.position = new Vector3d(x, y, z);
         this.yaw = yaw;
