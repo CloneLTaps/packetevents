@@ -64,15 +64,19 @@ public class BukkitEventProcessorInternal implements Listener {
         Player player = e.getPlayer();
         UUID uuid = player.getUniqueId();
         InetSocketAddress address = player.getAddress();
+
         //Cleanup user data
         PacketEvents.get().getPlayerUtils().loginTime.remove(uuid);
         PacketEvents.get().getPlayerUtils().playerPingMap.remove(uuid);
         PacketEvents.get().getPlayerUtils().playerSmoothedPingMap.remove(uuid);
-        PacketEvents.get().getPlayerUtils().clientVersionsMap.remove(address);
-        PacketEvents.get().getPlayerUtils().tempClientVersionMap.remove(address);
         PacketEvents.get().getPlayerUtils().keepAliveMap.remove(uuid);
         PacketEvents.get().getPlayerUtils().channels.remove(player.getName());
         PacketEvents.get().getServerUtils().entityCache.remove(e.getPlayer().getEntityId());
+
+        if(address != null) {
+            PacketEvents.get().getPlayerUtils().clientVersionsMap.remove(address);
+            PacketEvents.get().getPlayerUtils().tempClientVersionMap.remove(address);
+        }
     }
 
 
