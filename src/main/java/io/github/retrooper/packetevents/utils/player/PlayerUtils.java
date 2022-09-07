@@ -33,7 +33,6 @@ import io.netty.channel.Channel;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -186,20 +185,24 @@ public final class PlayerUtils {
     }
 
     public void writePacket(Player player, SendableWrapper wrapper) {
+        final Channel channel = (Channel) getChannel(player);
+        if(channel == null) return;
+
         try {
             Object nmsPacket = wrapper.asNMSPacket();
-            PacketEvents.get().getInjector().writePacket(getChannel(player), nmsPacket);
-        }
-        catch (Exception ex) {
+            PacketEvents.get().getInjector().writePacket(channel, nmsPacket);
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
     public void flushPackets(Player player) {
+        final Channel channel = (Channel) getChannel(player);
+        if(channel == null) return;
+
         try {
-            PacketEvents.get().getInjector().flushPackets(getChannel(player));
-        }
-        catch (Exception ex) {
+            PacketEvents.get().getInjector().flushPackets(channel);
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
@@ -211,6 +214,10 @@ public final class PlayerUtils {
      * @param wrapper Client-bound wrapper supporting sending.
      */
     public void sendPacket(Player player, SendableWrapper wrapper) {
+        final Channel channel = (Channel) getChannel(player);
+
+        if(player.getAddress() == null || player.getAddress().getAddress() == null) return;
+
         try {
             Object nmsPacket = wrapper.asNMSPacket();
             PacketEvents.get().getInjector().sendPacket(getChannel(player), nmsPacket);
@@ -227,20 +234,23 @@ public final class PlayerUtils {
     @Deprecated
     public void sendBlockChangePacket(Player player, WrapperPlayServerBlockChange packet) {
         final Channel channel = (Channel) getChannel(player);
+        if(channel == null) return;
         packet.prepareForSend();
 
-        if(channel != null && isOpen(channel)) {
+        if(isOpen(channel)) {
             ByteBuf buf = packet.buffer;
             channel.writeAndFlush(buf);
         }
     }
 
     private boolean isOpen(Object channel) {
-        return ((Channel) channel).isOpen();
+        return channel != null && ((Channel) channel).isOpen();
     }
 
     @Deprecated
     public void sendPacket(Object channel, SendableWrapper wrapper) {
+        if(channel == null) return;
+
         try {
             Object nmsPacket = wrapper.asNMSPacket();
             PacketEvents.get().getInjector().sendPacket(channel, nmsPacket);
@@ -256,11 +266,14 @@ public final class PlayerUtils {
      * @param packet Client-bound raw NMS packet.
      */
     public void sendNMSPacket(Player player, Object packet) {
-        PacketEvents.get().getInjector().sendPacket(getChannel(player), packet);
+        final Channel channel = (Channel) getChannel(player);
+        if(channel == null) return;
+        PacketEvents.get().getInjector().sendPacket(channel, packet);
     }
 
     @Deprecated
     public void sendNMSPacket(Object channel, Object packet) {
+        if(channel == null) return;
         PacketEvents.get().getInjector().sendPacket(channel, packet);
     }
 
@@ -293,10 +306,18 @@ public final class PlayerUtils {
         return GameProfileUtil.getGameProfileSkin(gameProfile);
     }
 
+    /**
+     * I am making this return null for bots so that I can just add a simple null check to other packets.
+     * Also the following only returns null when you attempt to get a bots channel and as far as I have seen
+     * this can only be null for bots.
+     */
     public Object getChannel(Player player) {
         String name = player.getName();
         Object channel = channels.get(name);
+
         if (channel == null) {
+            if(player.isOnline() && player.getAddress() == null) return null;
+
             channel = NMSUtils.getChannel(player);
             if (channel != null) {
                 channels.put(name, channel);

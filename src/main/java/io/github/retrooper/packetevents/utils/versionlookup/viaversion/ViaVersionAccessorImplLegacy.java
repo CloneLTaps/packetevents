@@ -20,7 +20,6 @@ package io.github.retrooper.packetevents.utils.versionlookup.viaversion;
 
 import io.github.retrooper.packetevents.utils.reflection.Reflection;
 import org.bukkit.entity.Player;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
