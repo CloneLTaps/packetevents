@@ -126,7 +126,9 @@ public class WrappedPacketOutPlayerInfo extends WrappedPacket implements Sendabl
                 playerInfoArray[0] = new PlayerInfo(username, gameProfile, gameMode, ping);
             }
             else {
+                final int size = readList(0).size();
                 List<Object> nmsPlayerInfoDataList = readList(0);
+                playerInfoArray = new PlayerInfo[size];
                 for (int i = 0; i < nmsPlayerInfoDataList.size(); i++) {
                     Object nmsPlayerInfoData = nmsPlayerInfoDataList.get(i);
                     WrappedPacket nmsPlayerInfoDataWrapper = new WrappedPacket(new NMSPacket(nmsPlayerInfoData));

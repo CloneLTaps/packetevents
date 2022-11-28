@@ -26,7 +26,6 @@ import io.github.retrooper.packetevents.utils.enums.EnumUtil;
 import io.github.retrooper.packetevents.utils.reflection.SubclassUtil;
 import io.github.retrooper.packetevents.utils.server.ServerVersion;
 import io.github.retrooper.packetevents.utils.vector.Vector3d;
-
 import java.lang.reflect.Constructor;
 import java.util.HashSet;
 import java.util.Optional;
