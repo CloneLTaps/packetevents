@@ -24,14 +24,14 @@ import io.github.retrooper.packetevents.event.PacketListenerAbstract;
 import io.github.retrooper.packetevents.event.eventtypes.CancellableEvent;
 import io.github.retrooper.packetevents.event.priority.PacketEventPriority;
 import io.github.retrooper.packetevents.event.PacketListenerPriority;
-
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 class EventManagerModern {
-    private final Map<Byte, HashSet<PacketListenerAbstract>> listenersMap = new ConcurrentHashMap<>();
+    private final Map<Byte, Set<PacketListenerAbstract>> listenersMap = new ConcurrentHashMap<>();
 
     /**
      * Call the PacketEvent.
@@ -47,7 +47,7 @@ class EventManagerModern {
     public void callEvent(final PacketEvent event) {
         byte highestReachedPriority = (byte) (PacketListenerPriority.LOWEST.getId() - 1);
         for (byte priority = PacketListenerPriority.LOWEST.getId(); priority <= PacketListenerPriority.MONITOR.getId(); priority++) {
-            HashSet<PacketListenerAbstract> listeners = listenersMap.get(priority);
+            Set<PacketListenerAbstract> listeners = listenersMap.get(priority);
             if (listeners != null) {
                 for (PacketListenerAbstract listener : listeners) {
                     try {
@@ -75,9 +75,9 @@ class EventManagerModern {
      */
     public synchronized void registerListener(final PacketListenerAbstract listener) {
         byte priority = listener.getPriority().getId();
-        HashSet<PacketListenerAbstract> listenerSet = listenersMap.get(priority);
+        Set<PacketListenerAbstract> listenerSet = listenersMap.get(priority);
         if (listenerSet == null) {
-            listenerSet = new HashSet<>();
+            listenerSet = Collections.newSetFromMap(new ConcurrentHashMap<>());
         }
         listenerSet.add(listener);
         listenersMap.put(priority, listenerSet);
@@ -101,7 +101,7 @@ class EventManagerModern {
      */
     public synchronized void unregisterListener(final PacketListenerAbstract listener) {
         byte priority = listener.getPriority().getId();
-        HashSet<PacketListenerAbstract> listenerSet = listenersMap.get(priority);
+        Set<PacketListenerAbstract> listenerSet = listenersMap.get(priority);
         if (listenerSet != null) {
             listenerSet.remove(listener);
         }
