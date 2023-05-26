@@ -25,12 +25,11 @@ import io.github.retrooper.packetevents.packetwrappers.NMSPacket;
 import io.github.retrooper.packetevents.packetwrappers.WrappedPacket;
 import io.github.retrooper.packetevents.utils.list.ListWrapper;
 import io.github.retrooper.packetevents.utils.nms.NMSUtils;
+import io.github.retrooper.packetevents.utils.reflection.ClassUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginDescriptionFile;
 import java.lang.reflect.Field;
@@ -131,9 +130,8 @@ public class EarlyChannelInjectorModern implements EarlyInjector {
             for (Object networkManager : networkManagers) {
                 WrappedPacket networkManagerWrapper = new WrappedPacket(new NMSPacket(networkManager), NMSUtils.networkManagerClass);
                 Channel channel = (Channel) networkManagerWrapper.readObject(0, NMSUtils.nettyChannelClass);
-                if (channel == null ||
-                        (!(channel.getClass().equals(NioSocketChannel.class))) &&
-                                !(channel.getClass().equals(EpollSocketChannel.class))) {
+                if (channel == null || ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                        || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
                     continue;
                 }
 
@@ -273,9 +271,8 @@ public class EarlyChannelInjectorModern implements EarlyInjector {
     public void ejectPlayer(Player player) {
         Object channel = PacketEvents.get().getPlayerUtils().getChannel(player);
         if (channel != null) {
-            Channel chnl = (Channel) channel;
             try {
-                chnl.pipeline().remove(PacketEvents.get().getHandlerName());
+                ((Channel)channel).pipeline().remove(PacketEvents.get().getHandlerName());
             } catch (Exception ignored) {
             }
         }
@@ -294,18 +291,33 @@ public class EarlyChannelInjectorModern implements EarlyInjector {
     @Override
     public void writePacket(Object ch, Object rawNMSPacket) {
         Channel channel = (Channel) ch;
+        //Don't write packets to fake channels
+        if (ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
+            return;
+        }
         channel.write(rawNMSPacket);
     }
 
     @Override
     public void flushPackets(Object ch) {
         Channel channel = (Channel) ch;
+        //Don't flush packets for fake channels
+        if (ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
+            return;
+        }
         channel.flush();
     }
 
     @Override
     public void sendPacket(Object ch, Object rawNMSPacket) {
         Channel channel = (Channel) ch;
+        //Don't send packets to fake channels
+        if (ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
+            return;
+        }
         channel.writeAndFlush(rawNMSPacket);
     }
 

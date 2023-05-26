@@ -21,9 +21,8 @@ package io.github.retrooper.packetevents.injector.legacy.late;
 import io.github.retrooper.packetevents.PacketEvents;
 import io.github.retrooper.packetevents.injector.LateInjector;
 import io.github.retrooper.packetevents.injector.legacy.PlayerChannelHandlerLegacy;
-import io.netty.channel.epoll.EpollSocketChannel;
+import io.github.retrooper.packetevents.utils.reflection.ClassUtil;
 import net.minecraft.util.io.netty.channel.Channel;
-import net.minecraft.util.io.netty.channel.socket.nio.NioSocketChannel;
 import org.bukkit.entity.Player;
 
 public class LateChannelInjectorLegacy implements LateInjector {
@@ -42,10 +41,11 @@ public class LateChannelInjectorLegacy implements LateInjector {
         PlayerChannelHandlerLegacy playerChannelHandlerLegacy = new PlayerChannelHandlerLegacy();
         playerChannelHandlerLegacy.player = player;
         Channel channel = (Channel) PacketEvents.get().getPlayerUtils().getChannel(player);
-        if (channel.getClass().equals(NioSocketChannel.class)
-        || channel.getClass().equals(EpollSocketChannel.class)) {
-            channel.pipeline().addBefore("packet_handler", PacketEvents.get().getHandlerName(), playerChannelHandlerLegacy);
-        }
+       if (channel != null) {
+           channel.eventLoop().execute(() -> {
+               channel.pipeline().addBefore("packet_handler", PacketEvents.get().getHandlerName(), playerChannelHandlerLegacy);
+           });
+       }
     }
 
     @Override
@@ -63,24 +63,39 @@ public class LateChannelInjectorLegacy implements LateInjector {
     @Override
     public boolean hasInjected(Player player) {
         Channel channel = (Channel) PacketEvents.get().getPlayerUtils().getChannel(player);
-        return channel.pipeline().get(PacketEvents.get().getHandlerName()) != null;
+        return channel != null && channel.pipeline().get(PacketEvents.get().getHandlerName()) != null;
     }
 
     @Override
     public void writePacket(Object ch, Object rawNMSPacket) {
         Channel channel = (Channel) ch;
+        //Don't write packets to fake channels
+        if (ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
+            return;
+        }
         channel.write(rawNMSPacket);
     }
 
     @Override
     public void flushPackets(Object ch) {
         Channel channel = (Channel) ch;
+        //Don't flush packets for fake channels
+        if (ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
+            return;
+        }
         channel.flush();
     }
 
     @Override
     public void sendPacket(Object rawChannel, Object packet) {
         Channel channel = (Channel) rawChannel;
+        //Don't send packets to fake channels
+        if (ClassUtil.getClassSimpleName(channel.getClass()).equals("FakeChannel")
+                || ClassUtil.getClassSimpleName(channel.getClass()).equals("SpoofedChannel")) {
+            return;
+        }
         channel.pipeline().writeAndFlush(packet);
     }
 }

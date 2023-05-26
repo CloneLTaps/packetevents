@@ -31,7 +31,6 @@ import io.github.retrooper.packetevents.utils.player.GameMode;
 import io.github.retrooper.packetevents.utils.reflection.SubclassUtil;
 import io.github.retrooper.packetevents.utils.server.ServerVersion;
 import org.jetbrains.annotations.Nullable;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -124,11 +123,9 @@ public class WrappedPacketOutPlayerInfo extends WrappedPacket implements Sendabl
                 GameMode gameMode = GameMode.values()[readInt(1)];
                 int ping = readInt(2);
                 playerInfoArray[0] = new PlayerInfo(username, gameProfile, gameMode, ping);
-            }
-            else {
-                final int size = readList(0).size();
+            } else {
                 List<Object> nmsPlayerInfoDataList = readList(0);
-                playerInfoArray = new PlayerInfo[size];
+                playerInfoArray = new PlayerInfo[nmsPlayerInfoDataList.size()];
                 for (int i = 0; i < nmsPlayerInfoDataList.size(); i++) {
                     Object nmsPlayerInfoData = nmsPlayerInfoDataList.get(i);
                     WrappedPacket nmsPlayerInfoDataWrapper = new WrappedPacket(new NMSPacket(nmsPlayerInfoData));
@@ -201,6 +198,14 @@ public class WrappedPacketOutPlayerInfo extends WrappedPacket implements Sendabl
         }
         playerInfoWrapper.setAction(getAction());
         return packetInstance;
+    }
+
+    @Override
+    public boolean isSupported() {
+        //1.19.3 removed this packet and replaced it with PlayerInfoRemove & PlayerInfoUpdate
+        //TODO Since this is a minimal update, we won't add those. v1.8 will eventually be discontinued
+        //so please consider updating to 2.0
+        return version.isOlderThanOrEquals(ServerVersion.v_1_19_2);
     }
 
     public enum PlayerInfoAction {
