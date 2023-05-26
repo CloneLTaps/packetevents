@@ -186,4 +186,9 @@ public class Vector3i {
     public String toString() {
         return "X: " + x + ", Y: " + y + ", Z: " + z;
     }
+
+    @Override
+    public int hashCode() {
+        return (this.getY() + this.getZ() * 31) * 31 + this.getX();
+    }
 }

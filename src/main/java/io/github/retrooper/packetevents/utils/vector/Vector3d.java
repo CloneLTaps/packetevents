@@ -20,6 +20,8 @@ package io.github.retrooper.packetevents.utils.vector;
 
 import org.bukkit.Location;
 
+import java.util.Objects;
+
 /**
  * 3D double Vector.
  * This vector can represent coordinates, angles, or anything you want.
@@ -193,5 +195,10 @@ public class Vector3d {
     @Override
     public String toString() {
         return "X: " + x + ", Y: " + y + ", Z: " + z;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y, z);
     }
 }
