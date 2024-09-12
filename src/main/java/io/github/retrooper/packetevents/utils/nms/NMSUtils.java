@@ -33,10 +33,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -44,25 +41,25 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class NMSUtils {
-    public static final String NMS_DIR = ServerVersion.getNMSDirectory() + ".";
-    public static final String OBC_DIR = ServerVersion.getOBCDirectory() + ".";
     private static final ThreadLocal<Random> randomThreadLocal = ThreadLocal.withInitial(Random::new);
     public static boolean legacyNettyImportMode;
     public static ServerVersion version;
-    public static Constructor<?> blockPosConstructor, minecraftKeyConstructor, vec3DConstructor, dataWatcherConstructor, packetDataSerializerConstructor, itemStackConstructor;
-    public static Class<?> mobEffectListClass, nmsEntityClass, minecraftServerClass, craftWorldClass, playerInteractManagerClass, entityPlayerClass, playerConnectionClass, craftServerClass,
+    public static Executable minecraftKeyConstructorOrMethod;
+    public static Constructor<?> blockPosConstructor, vec3DConstructor, dataWatcherConstructor, packetDataSerializerConstructor, itemStackConstructor;
+    public static Class<?> mobEffectListClass, nmsEntityClass, minecraftServerClass, craftWorldClass, playerInteractManagerClass, entityPlayerClass, playerConnectionClass, SERVER_COMMON_PACKETLISTENER_IMPL_CLASS, craftServerClass,
             craftPlayerClass, serverConnectionClass, craftEntityClass, nmsItemStackClass, networkManagerClass, nettyChannelClass, gameProfileClass, iChatBaseComponentClass,
             blockPosClass, sectionPositionClass, vec3DClass, channelFutureClass, blockClass, iBlockDataClass, nmsWorldClass, craftItemStackClass,
             soundEffectClass, minecraftKeyClass, chatSerializerClass, craftMagicNumbersClass, worldSettingsClass, worldServerClass, dataWatcherClass,
             dedicatedServerClass, entityHumanClass, packetDataSerializerClass, byteBufClass, dimensionManagerClass, nmsItemClass, iMaterialClass, movingObjectPositionBlockClass, boundingBoxClass,
-            tileEntityCommandClass, mojangEitherClass;
+            tileEntityCommandClass, mojangEitherClass, registryMaterials, builtInRegistriesClass;
     public static Class<? extends Enum<?>> enumDirectionClass, enumHandClass, enumGameModeClass, enumDifficultyClass, tileEntityCommandTypeClass;
-    public static Method getBlockPosX, getBlockPosY, getBlockPosZ, mojangEitherLeft, mojangEitherRight;
+    public static Method getBlockPosX, getBlockPosY, getBlockPosZ, mojangEitherLeft, mojangEitherRight, getRegistryId, getRegistryById;
     private static String nettyPrefix;
     private static Method getCraftPlayerHandle, getCraftEntityHandle, getCraftWorldHandle, asBukkitCopy,
             asNMSCopy, getMessageMethod, chatFromStringMethod, getMaterialFromNMSBlock, getNMSBlockFromMaterial,
             getMobEffectListId, getMobEffectListById, getItemId, getItemById, getBukkitEntity;
-    private static Field entityPlayerPingField, entityBoundingBoxField;
+    private static Field entityPlayerPingField, entityBoundingBoxField, mobEffectsRegistryField;
+    public static Field getBaseBlockPosX, getBaseBlockPosY, getBaseBlockPosZ;
     private static Object minecraftServer;
     private static Object minecraftServerConnection;
 
@@ -134,6 +131,8 @@ public final class NMSUtils {
         playerConnectionClass = getNMSClassWithoutException("PlayerConnection");
         if (playerConnectionClass == null) {
             playerConnectionClass = getNMClassWithoutException("server.network.PlayerConnection");
+            //Only for 1.20.2
+            SERVER_COMMON_PACKETLISTENER_IMPL_CLASS = getNMClassWithoutException("server.network.ServerCommonPacketListenerImpl");
         }
         serverConnectionClass = getNMSClassWithoutException("ServerConnection");
         if (serverConnectionClass == null) {
@@ -183,6 +182,9 @@ public final class NMSUtils {
         dataWatcherClass = getNMSClassWithoutException("DataWatcher");
         if (dataWatcherClass == null) {
             dataWatcherClass = getNMClassWithoutException("network.syncher.DataWatcher");
+            if (dataWatcherClass == null) {
+                dataWatcherClass = getNMClassWithoutException("network.syncher.SynchedEntityData");
+            }
         }
         nmsItemClass = getNMSClassWithoutException("Item");
         if (nmsItemClass == null) {
@@ -223,6 +225,9 @@ public final class NMSUtils {
         iChatBaseComponentClass = NMSUtils.getNMSClassWithoutException("IChatBaseComponent");
         if (iChatBaseComponentClass == null) {
             iChatBaseComponentClass = getNMClassWithoutException("network.chat.IChatBaseComponent");
+            if (iChatBaseComponentClass == null) {
+                iChatBaseComponentClass = getNMClassWithoutException("network.chat.Component");
+            }
         }
 
         tileEntityCommandClass = NMSUtils.getNMSClassWithoutException("TileEntityCommand");
@@ -235,6 +240,34 @@ public final class NMSUtils {
         //Isn't present on every version
         mojangEitherClass = Reflection.getClassByNameWithoutException("com.mojang.datafixers.util.Either");
 
+        registryMaterials = Reflection.getClassByNameWithoutException("net.minecraft.core.RegistryMaterials");
+
+        builtInRegistriesClass = Reflection.getClassByNameWithoutException("net.minecraft.core.registries.BuiltInRegistries");
+
+        if (builtInRegistriesClass != null) {
+            mobEffectsRegistryField = Reflection.getField(builtInRegistriesClass, "e");
+
+            for (Field f : Reflection.getFields(builtInRegistriesClass)) {
+                Type type = f.getGenericType();
+                if (type instanceof ParameterizedType) {
+                    ParameterizedType pType = (ParameterizedType) type;
+                    if (pType.getActualTypeArguments()[0].equals(mobEffectListClass)) {
+                        mobEffectsRegistryField = f;
+                        break;
+                    }
+                }
+            }
+        }
+
+        Class<?> baseBlockPosClass = NMSUtils.getNMSClassWithoutException("BaseBlockPosition");
+        if (baseBlockPosClass == null) {
+            baseBlockPosClass = getNMClassWithoutException("core.BaseBlockPosition");
+        }
+        if (baseBlockPosClass != null) {
+            getBaseBlockPosX = Reflection.getField(baseBlockPosClass, int.class, 0);
+            getBaseBlockPosY = Reflection.getField(baseBlockPosClass, int.class, 1);
+            getBaseBlockPosZ = Reflection.getField(baseBlockPosClass, int.class, 2);
+        }
         vec3DClass = NMSUtils.getNMSClassWithoutException("Vec3D");
         if (vec3DClass == null) {
             vec3DClass = getNMClassWithoutException("world.phys.Vec3D");
@@ -270,7 +303,11 @@ public final class NMSUtils {
             }
 
             if (dataWatcherClass != null) {
-                dataWatcherConstructor = dataWatcherClass.getConstructor(nmsEntityClass);
+                try {
+                    dataWatcherConstructor = dataWatcherClass.getConstructor(nmsEntityClass);
+                } catch (Exception ex) {
+                    dataWatcherConstructor = dataWatcherClass.getDeclaredConstructors()[0];
+                }
             }
 
             if (nmsItemStackClass != null && iMaterialClass != null) {
@@ -313,6 +350,9 @@ public final class NMSUtils {
             } catch (ClassNotFoundException e) {
                 //That is fine, it is probably a subclass
                 chatSerializerClass = SubclassUtil.getSubClass(iChatBaseComponentClass, "ChatSerializer");
+                if (chatSerializerClass == null) {
+                    chatSerializerClass = SubclassUtil.getSubClass(iChatBaseComponentClass, "Serializer");
+                }
             }
             craftMagicNumbersClass = NMSUtils.getOBCClass("util.CraftMagicNumbers");
 
@@ -322,7 +362,12 @@ public final class NMSUtils {
             getNMSBlockFromMaterial = Reflection.getMethod(craftMagicNumbersClass, "getBlock", NMSUtils.blockClass, Material.class);
 
             if (minecraftKeyClass != null) {
-                minecraftKeyConstructor = minecraftKeyClass.getConstructor(String.class);
+                try {
+                    minecraftKeyConstructorOrMethod = minecraftKeyClass.getConstructor(String.class);
+                } catch (Exception ex) {
+                    minecraftKeyConstructorOrMethod = Reflection.getMethod(minecraftKeyClass, 0, String.class, char.class);
+                }
+
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -349,6 +394,9 @@ public final class NMSUtils {
             // Mappings changed with 1.18
             if (getBlockPosX == null) {
                 getBlockPosX = Reflection.getMethod(NMSUtils.blockPosClass, "u", int.class);
+                if (getBlockPosX == null) {
+
+                }
             }
             if (getBlockPosY == null) {
                 getBlockPosY = Reflection.getMethod(NMSUtils.blockPosClass, "v", int.class);
@@ -362,6 +410,12 @@ public final class NMSUtils {
             mojangEitherLeft = Reflection.getMethod(mojangEitherClass, "left", Optional.class);
             mojangEitherRight = Reflection.getMethod(mojangEitherClass, "right", Optional.class);
         }
+
+        if (registryMaterials != null) {
+            getRegistryId = Reflection.getMethod(registryMaterials, int.class, 0, 1);
+            getRegistryById = Reflection.getMethod(registryMaterials, Optional.class, true, 0, int.class);
+        }
+
         worldSettingsClass = NMSUtils.getNMSClassWithoutException("WorldSettings");
         if (worldServerClass == null) {
             worldServerClass = getNMClassWithoutException("world.level.WorldSettings");
@@ -388,8 +442,13 @@ public final class NMSUtils {
     public static Object getMinecraftServerInstance(Server server) {
         if (minecraftServer == null) {
             try {
-                minecraftServer = Reflection.getField(craftServerClass, minecraftServerClass, 0)
-                        .get(server);
+                Field f = Reflection.getField(craftServerClass, minecraftServerClass, 0);
+                if (f == null) {
+                    //1.20.5 way
+                    minecraftServer = Reflection.getField(minecraftServerClass, minecraftServerClass, 0).get(null);
+                } else {
+                    minecraftServer = f.get(server);
+                }
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -416,7 +475,7 @@ public final class NMSUtils {
     }
 
     public static Class<?> getNMSClass(String name) throws ClassNotFoundException {
-        return Class.forName(NMS_DIR + name);
+        return Class.forName(ServerVersion.getNMSDirectory() + name);
     }
 
     public static Class<?> getNMClass(String name) throws ClassNotFoundException {
@@ -440,7 +499,7 @@ public final class NMSUtils {
     }
 
     public static Class<? extends Enum<?>> getNMSEnumClass(String name) throws ClassNotFoundException {
-        return (Class<? extends Enum<?>>) Class.forName(NMS_DIR + name);
+        return (Class<? extends Enum<?>>) Class.forName(ServerVersion.getNMSDirectory() + name);
     }
 
     public static Class<? extends Enum<?>> getNMSEnumClassWithoutException(String name) {
@@ -461,7 +520,7 @@ public final class NMSUtils {
     }
 
     public static Class<?> getOBCClass(String name) throws ClassNotFoundException {
-        return Class.forName(OBC_DIR + name);
+        return Class.forName(ServerVersion.getOBCDirectory() + name);
     }
 
     public static Class<?> getNettyClass(String name) throws ClassNotFoundException {
@@ -522,7 +581,7 @@ public final class NMSUtils {
         Class<?> entityPlayerClass = entityPlayer != null ? entityPlayer.getClass() : null;
         String className = entityPlayer != null ? ClassUtil.getClassSimpleName(entityPlayerClass) : "";
         if (entityPlayer == null
-        || className.contains("Fake")) {
+                || className.contains("Fake")) {
             return null;
         }
         //If we need to get the superclass, we get it
@@ -545,7 +604,8 @@ public final class NMSUtils {
         if (playerConnection == null) {
             return null;
         }
-        WrappedPacket wrapper = new WrappedPacket(new NMSPacket(playerConnection), playerConnectionClass);
+        Class<?> playerConClass = SERVER_COMMON_PACKETLISTENER_IMPL_CLASS != null ? SERVER_COMMON_PACKETLISTENER_IMPL_CLASS : playerConnectionClass;
+        WrappedPacket wrapper = new WrappedPacket(new NMSPacket(playerConnection), playerConClass);
         try {
             return wrapper.readObject(0, networkManagerClass);
         } catch (Exception ex) {
@@ -554,11 +614,17 @@ public final class NMSUtils {
                 return wrapper.readObject(0, networkManagerClass);
             } catch (Exception ex2) {
                 //Support for some custom plugins.
-                playerConnection = wrapper.read(0, playerConnectionClass);
-                wrapper = new WrappedPacket(new NMSPacket(playerConnection), playerConnectionClass);
-                return wrapper.readObject(0, networkManagerClass);
+                try {
+                    playerConnection = wrapper.read(0, playerConnectionClass);
+                    wrapper = new WrappedPacket(new NMSPacket(playerConnection), playerConnectionClass);
+                    return wrapper.readObject(0, networkManagerClass);
+                } catch (Exception ex3) {
+                    //Print the original exception!
+                    ex.printStackTrace();
+                }
             }
         }
+        return null;
     }
 
     public static Object getChannel(final Player player) {
@@ -717,7 +783,12 @@ public final class NMSUtils {
 
     public static Object generateMinecraftKeyNew(String text) {
         try {
-            return minecraftKeyConstructor.newInstance(text);
+            if (minecraftKeyConstructorOrMethod instanceof Constructor<?>) {
+                return ((Constructor<?>)minecraftKeyConstructorOrMethod).newInstance(text);
+            }
+            else {
+                return ((Method)minecraftKeyConstructorOrMethod).invoke(text, ':');
+            }
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
@@ -761,7 +832,11 @@ public final class NMSUtils {
 
     public static Object generateDataWatcher(Object nmsEntity) {
         try {
-            return dataWatcherConstructor.newInstance(nmsEntity);
+            if (dataWatcherConstructor.getParameterCount() == 2) {
+                return dataWatcherConstructor.newInstance(nmsEntity, null);
+            } else {
+                return dataWatcherConstructor.newInstance(nmsEntity);
+            }
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
@@ -797,6 +872,11 @@ public final class NMSUtils {
 
     public static int getEffectId(Object nmsMobEffectList) {
         try {
+            //1.20.2+
+            if (getMobEffectListId == null) {
+                Object registry = mobEffectsRegistryField.get(null);
+                return (int) getRegistryId.invoke(registry, nmsMobEffectList);
+            }
             return (int) getMobEffectListId.invoke(null, nmsMobEffectList);
         } catch (IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
@@ -806,6 +886,10 @@ public final class NMSUtils {
 
     public static Object getMobEffectListById(int effectID) {
         try {
+            if (getMobEffectListById == null) {
+                Object registry = mobEffectsRegistryField.get(null);
+                return getRegistryById.invoke(registry, effectID);
+            }
             return getMobEffectListById.invoke(null, effectID);
         } catch (IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();

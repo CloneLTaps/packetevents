@@ -24,6 +24,7 @@ import io.github.retrooper.packetevents.packetwrappers.WrappedPacket;
 import io.github.retrooper.packetevents.utils.nms.NMSUtils;
 import io.github.retrooper.packetevents.utils.reflection.Reflection;
 import io.github.retrooper.packetevents.utils.reflection.SubclassUtil;
+import io.github.retrooper.packetevents.utils.server.ServerVersion;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -40,6 +41,11 @@ public class AttributeSnapshotWrapper extends WrappedPacket {
     private static Class<?> attributeSnapshotClass, attributeBaseClass;
     private static Field iRegistryAttributeBaseField;
     private static Method getiRegistryByMinecraftKeyMethod;
+    private static Method readStringMethod;
+
+    private static Class<?> holderClass;
+    private static Method accessHolderValueMethod;
+    private static boolean hasHolder = false;
     private static boolean stringKeyPresent;
 
     public AttributeSnapshotWrapper(NMSPacket packet) {
@@ -57,6 +63,11 @@ public class AttributeSnapshotWrapper extends WrappedPacket {
             if (attributeSnapshotClass == null) {
                 attributeSnapshotClass = SubclassUtil.getSubClass(PacketTypeClasses.Play.Server.UPDATE_ATTRIBUTES, "AttributeSnapshot");
             }
+        }
+
+        holderClass = NMSUtils.getNMClassWithoutException("core.Holder");
+        if (holderClass != null) {
+            hasHolder = Reflection.getField(attributeSnapshotClass, holderClass, 0) != null;
         }
         if (attributeSnapshotConstructor == null) {
             try {
@@ -135,6 +146,11 @@ public class AttributeSnapshotWrapper extends WrappedPacket {
             }
         }
 
+        holderClass = NMSUtils.getNMClassWithoutException("core.Holder");
+        if (holderClass != null) {
+            hasHolder = Reflection.getField(attributeSnapshotClass, holderClass, 0) != null;
+        }
+
         if (attributeSnapshotConstructor == null) {
             try {
                 attributeSnapshotConstructor = attributeSnapshotClass.getConstructor(attributeBaseClass, double.class, Collection.class);
@@ -160,9 +176,33 @@ public class AttributeSnapshotWrapper extends WrappedPacket {
         if (stringKeyPresent) {
             return readString(0);
         } else {
-            Object attributeBase = readObject(0, attributeBaseClass);
-            WrappedPacket attributeBaseWrapper = new WrappedPacket(new NMSPacket(attributeBase), attributeBaseClass);
-            return attributeBaseWrapper.readString(0);
+            Object attributeBase = null;
+            if (hasHolder) {
+                Object holder = readObject(0, holderClass);
+                if (accessHolderValueMethod == null) {
+                    accessHolderValueMethod = Reflection.getMethod(holderClass, 0);
+                }
+                try {
+                    attributeBase = accessHolderValueMethod.invoke(holder);
+                } catch (IllegalAccessException | InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                attributeBase = readObject(0, attributeBaseClass);
+            }
+            if (version.isNewerThanOrEquals(ServerVersion.v_1_21)) {
+                if (readStringMethod== null) {
+                    readStringMethod = Reflection.getMethod(attributeBaseClass, String.class, 0);
+                }
+                try {
+                    return (String) readStringMethod.invoke(attributeBase);
+                } catch (IllegalAccessException | InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                WrappedPacket attributeBaseWrapper = new WrappedPacket(new NMSPacket(attributeBase), attributeBaseClass);
+                return attributeBaseWrapper.readString(0);
+            }
         }
     }
 

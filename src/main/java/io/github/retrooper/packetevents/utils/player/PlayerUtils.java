@@ -214,8 +214,6 @@ public final class PlayerUtils {
      * @param wrapper Client-bound wrapper supporting sending.
      */
     public void sendPacket(Player player, SendableWrapper wrapper) {
-        final Channel channel = (Channel) getChannel(player);
-
         if(player.getAddress() == null || player.getAddress().getAddress() == null) return;
 
         try {

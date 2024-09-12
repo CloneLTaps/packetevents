@@ -48,7 +48,7 @@ public class PacketTypeClasses {
                     PREFIX  = "net.minecraft.network.protocol.status.";
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 Client.START = Reflection.getClassByNameWithoutException(PREFIX + "PacketStatusInStart");
                 Client.PING = Reflection.getClassByNameWithoutException(PREFIX + "PacketStatusInPing");
@@ -64,7 +64,7 @@ public class PacketTypeClasses {
                     PREFIX  = "net.minecraft.network.protocol.status.";
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 Server.PONG = Reflection.getClassByNameWithoutException(PREFIX + "PacketStatusOutPong");
                 Server.SERVER_INFO = Reflection.getClassByNameWithoutException(PREFIX + "PacketStatusOutServerInfo");
@@ -82,7 +82,7 @@ public class PacketTypeClasses {
                     PREFIX  = "net.minecraft.network.protocol.handshake.";
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 Handshaking.Client.SET_PROTOCOL = Reflection.getClassByNameWithoutException(PREFIX + "PacketHandshakingInSetProtocol");
             }
@@ -99,7 +99,7 @@ public class PacketTypeClasses {
                     PREFIX  = "net.minecraft.network.protocol.login.";
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 //In and Out custom payload login packets have been here since 1.13
                 if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_13)) {
@@ -119,7 +119,7 @@ public class PacketTypeClasses {
                     PREFIX  = "net.minecraft.network.protocol.login.";
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 //In and Out custom payload login packets have been here since 1.13
                 if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_13)) {
@@ -137,8 +137,7 @@ public class PacketTypeClasses {
 
     public static class Play {
         public static class Client {
-            private static String COMMON_PREFIX;
-            private static String PREFIX;
+            private static String COMMON_PREFIX, PREFIX, PREFIX_COMMON_STATES;
             public static Class<?> FLYING, POSITION, POSITION_LOOK, LOOK, GROUND, CLIENT_COMMAND,
                     TRANSACTION, BLOCK_DIG, ENTITY_ACTION, USE_ENTITY,
                     WINDOW_CLICK, STEER_VEHICLE, CUSTOM_PAYLOAD, ARM_ANIMATION,
@@ -157,9 +156,12 @@ public class PacketTypeClasses {
             public static void load() {
                 if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_17)) {
                     PREFIX  = "net.minecraft.network.protocol.game.";
+                    if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_20_2)) {
+                        PREFIX_COMMON_STATES = "net.minecraft.network.protocol.common.";
+                    }
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 COMMON_PREFIX = PREFIX + "PacketPlayIn";
                 FLYING = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "Flying");
@@ -174,6 +176,19 @@ public class PacketTypeClasses {
                 }
                 if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_17)) {
                     GROUND = SubclassUtil.getSubClass(FLYING, "d");
+                    if (GROUND == null) {
+                        GROUND = SubclassUtil.getSubClass(FLYING, 0);
+                    }
+                    if (POSITION == null) {
+                        POSITION = SubclassUtil.getSubClass(FLYING, 2);
+                    }
+                    if (POSITION_LOOK == null) {
+                        POSITION_LOOK = SubclassUtil.getSubClass(FLYING, 3);
+                    }
+
+                    if (LOOK == null) {
+                        LOOK = SubclassUtil.getSubClass(FLYING, 1);
+                    }
                 }
                 else {
                     GROUND = FLYING;
@@ -182,17 +197,25 @@ public class PacketTypeClasses {
                 TRANSACTION = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "Transaction");
                 //This packet was added in 1.17 protocol
                 PONG = Reflection.getClassByNameWithoutException(PREFIX + "ServerboundPongPacket");
+                if (PONG == null) {
+                    PONG = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ServerboundPongPacket");
+                }
+                SETTINGS = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "Settings");
+                if (SETTINGS == null) {
+                    SETTINGS = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ServerboundClientInformationPacket");
+                }
                 try {
-                    SETTINGS = Class.forName(COMMON_PREFIX + "Settings");
                     ENCHANT_ITEM = Class.forName(COMMON_PREFIX + "EnchantItem");
-
                     CLIENT_COMMAND = Class.forName(COMMON_PREFIX + "ClientCommand");
                     BLOCK_DIG = Class.forName(COMMON_PREFIX + "BlockDig");
                     ENTITY_ACTION = Class.forName(COMMON_PREFIX + "EntityAction");
                     USE_ENTITY = Class.forName(COMMON_PREFIX + "UseEntity");
                     WINDOW_CLICK = Class.forName(COMMON_PREFIX + "WindowClick");
                     STEER_VEHICLE = Class.forName(COMMON_PREFIX + "SteerVehicle");
-                    CUSTOM_PAYLOAD = Class.forName(COMMON_PREFIX + "CustomPayload");
+                    CUSTOM_PAYLOAD = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "CustomPayload");
+                    if (CUSTOM_PAYLOAD == null) {
+                        CUSTOM_PAYLOAD = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ServerboundCustomPayloadPacket");
+                    }
                     ARM_ANIMATION = Class.forName(COMMON_PREFIX + "ArmAnimation");
                     ABILITIES = Class.forName(COMMON_PREFIX + "Abilities");
                     HELD_ITEM_SLOT = Class.forName(COMMON_PREFIX + "HeldItemSlot");
@@ -200,7 +223,10 @@ public class PacketTypeClasses {
                     TAB_COMPLETE = Class.forName(COMMON_PREFIX + "TabComplete");
                     CHAT = Class.forName(COMMON_PREFIX + "Chat");
                     SET_CREATIVE_SLOT = Class.forName(COMMON_PREFIX + "SetCreativeSlot");
-                    KEEP_ALIVE = Class.forName(COMMON_PREFIX + "KeepAlive");
+                    KEEP_ALIVE = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "KeepAlive");
+                    if (KEEP_ALIVE == null) {
+                        KEEP_ALIVE = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ServerboundKeepAlivePacket");
+                    }
                     UPDATE_SIGN = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "UpdateSign");
 
                     TELEPORT_ACCEPT = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "TeleportAccept");
@@ -241,7 +267,7 @@ public class PacketTypeClasses {
         }
 
         public static class Server {
-            private static String COMMON_PREFIX, PREFIX;
+            private static String COMMON_PREFIX, PREFIX, PREFIX_COMMON_STATES;
             public static Class<?> SPAWN_ENTITY, SPAWN_ENTITY_EXPERIENCE_ORB, SPAWN_ENTITY_WEATHER, SPAWN_ENTITY_LIVING,
                     SPAWN_ENTITY_PAINTING, SPAWN_ENTITY_SPAWN, ANIMATION, STATISTIC,
                     BLOCK_BREAK, BLOCK_BREAK_ANIMATION, TILE_ENTITY_DATA, BLOCK_ACTION,
@@ -276,9 +302,12 @@ public class PacketTypeClasses {
             public static void load() {
                 if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_17)) {
                     PREFIX  = "net.minecraft.network.protocol.game.";
+                    if (PacketEvents.get().getServerUtils().getVersion().isNewerThanOrEquals(ServerVersion.v_1_20_2)) {
+                        PREFIX_COMMON_STATES = "net.minecraft.network.protocol.common.";
+                    }
                 }
                 else {
-                    PREFIX = ServerVersion.getNMSDirectory() + ".";
+                    PREFIX = ServerVersion.getNMSDirectory();
                 }
                 COMMON_PREFIX  = PREFIX + "PacketPlayOut";
                 SPAWN_ENTITY = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "SpawnEntity");
@@ -310,14 +339,23 @@ public class PacketTypeClasses {
                 SET_SLOT = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "SetSlot");
                 SET_COOLDOWN = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "SetCooldown");
                 CUSTOM_PAYLOAD = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "CustomPayload");
+                if (CUSTOM_PAYLOAD == null) {
+                    CUSTOM_PAYLOAD = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ClientboundCustomPayloadPacket");
+                }
                 CUSTOM_SOUND_EFFECT = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "CustomSoundEffect");
                 KICK_DISCONNECT = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "KickDisconnect");
+                if (KICK_DISCONNECT == null) {
+                    KICK_DISCONNECT = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ClientboundDisconnectPacket");
+                }
                 ENTITY_STATUS = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "EntityStatus");
                 EXPLOSION = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "Explosion");
                 UNLOAD_CHUNK = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "UnloadChunk");
                 GAME_STATE_CHANGE = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "GameStateChange");
                 OPEN_WINDOW_HORSE = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "OpenWindowHorse");
                 KEEP_ALIVE = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "KeepAlive");
+                if (KEEP_ALIVE == null) {
+                    KEEP_ALIVE = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ClientboundKeepAlivePacket");
+                }
                 MAP_CHUNK = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "MapChunk");
                 WORLD_EVENT = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "WorldEvent");
                 WORLD_PARTICLES = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "WorldParticles");
@@ -334,6 +372,16 @@ public class PacketTypeClasses {
                     REL_ENTITY_MOVE = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "RelEntityMove");
                     REL_ENTITY_MOVE_LOOK = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "RelEntityMoveLook");
                     ENTITY_LOOK = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "RelEntityLook");
+
+                    if (REL_ENTITY_MOVE == null) {
+                        REL_ENTITY_MOVE = SubclassUtil.getSubClass(ENTITY, 1);
+                    }
+                    if (REL_ENTITY_MOVE_LOOK == null) {
+                        REL_ENTITY_MOVE_LOOK = SubclassUtil.getSubClass(ENTITY, 2);
+                    }
+                    if (ENTITY_LOOK == null) {
+                        ENTITY_LOOK = SubclassUtil.getSubClass(ENTITY, 0);
+                    }
                 }
                 VEHICLE_MOVE = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "VehicleMove");
                 OPEN_BOOK = Reflection.getClassByNameWithoutException(COMMON_PREFIX + "OpenBook");
@@ -388,6 +436,9 @@ public class PacketTypeClasses {
 
                 //These packets were added in 1.17
                 PING = Reflection.getClassByNameWithoutException(PREFIX + "ClientboundPingPacket");
+                if (PING == null) {
+                    PING = Reflection.getClassByNameWithoutException(PREFIX_COMMON_STATES + "ClientboundPingPacket");
+                }
                 ADD_VIBRATION_SIGNAL = Reflection.getClassByNameWithoutException(PREFIX + "ClientboundAddVibrationSignalPacket");
                 CLEAR_TITLES = Reflection.getClassByNameWithoutException(PREFIX + "ClientboundClearTitlesPacket");
                 INITIALIZE_BORDER = Reflection.getClassByNameWithoutException(PREFIX + "ClientboundInitializeBorderPacket");

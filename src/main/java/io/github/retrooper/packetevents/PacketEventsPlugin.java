@@ -19,17 +19,26 @@
 package io.github.retrooper.packetevents;
 
 import io.github.retrooper.packetevents.event.PacketListenerAbstract;
+import io.github.retrooper.packetevents.event.impl.PacketConfigReceiveEvent;
 import io.github.retrooper.packetevents.event.impl.PacketPlayReceiveEvent;
 import io.github.retrooper.packetevents.event.impl.PacketPlaySendEvent;
 import io.github.retrooper.packetevents.packettype.PacketType;
+import io.github.retrooper.packetevents.packetwrappers.play.in.blockdig.WrappedPacketInBlockDig;
+import io.github.retrooper.packetevents.packetwrappers.play.in.custompayload.WrappedPacketInCustomPayload;
+import io.github.retrooper.packetevents.packetwrappers.play.in.entityaction.WrappedPacketInEntityAction;
+import io.github.retrooper.packetevents.packetwrappers.play.in.flying.WrappedPacketInFlying;
+import io.github.retrooper.packetevents.packetwrappers.play.in.useentity.WrappedPacketInUseEntity;
 import io.github.retrooper.packetevents.packetwrappers.play.out.entity.WrappedPacketOutEntity;
 import io.github.retrooper.packetevents.packetwrappers.play.out.entityeffect.WrappedPacketOutEntityEffect;
+import io.github.retrooper.packetevents.packetwrappers.play.out.entityvelocity.WrappedPacketOutEntityVelocity;
 import io.github.retrooper.packetevents.packetwrappers.play.out.setslot.WrappedPacketOutSetSlot;
 import io.github.retrooper.packetevents.settings.PacketEventsSettings;
 import io.github.retrooper.packetevents.utils.server.ServerVersion;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.nio.charset.StandardCharsets;
 
 public class PacketEventsPlugin extends JavaPlugin {
     @Override
@@ -50,9 +59,38 @@ public class PacketEventsPlugin extends JavaPlugin {
             public void onPacketPlayReceive(PacketPlayReceiveEvent event) {
                 if (event.getPacketId() == PacketType.Play.Client.USE_ENTITY) {
                     System.out.println("Yes");
+                    WrappedPacketInUseEntity ue = new WrappedPacketInUseEntity(event.getNMSPacket());
+                    event.getPlayer().sendMessage("action: " + ue.getAction());
+                    event.getPlayer().sendMessage("target: " + ue.getTarget());
                     ItemStack stack = new ItemStack(Material.STICK);
                     WrappedPacketOutSetSlot setSlot = new WrappedPacketOutSetSlot(0, 37, stack);
                     PacketEvents.get().getPlayerUtils().sendPacket(event.getPlayer(), setSlot);
+                } else if (event.getPacketId() == PacketType.Play.Client.CUSTOM_PAYLOAD) {
+                    WrappedPacketInCustomPayload cp = new WrappedPacketInCustomPayload(event.getNMSPacket());
+                    String name = cp.getChannelName();
+                    System.out.println("name play: " + name);
+                    System.out.println("Data: " + ((new String(cp.getData(), StandardCharsets.UTF_8))));
+                }
+                else if (event.getPacketId() == PacketType.Play.Client.ENTITY_ACTION) {
+                    WrappedPacketInEntityAction ea = new WrappedPacketInEntityAction(event.getNMSPacket());
+                    event.getPlayer().sendMessage("EA: " + ea.getAction());
+                } else if (PacketType.Play.Client.BLOCK_DIG == event.getPacketId()) {
+                    WrappedPacketInBlockDig bd = new WrappedPacketInBlockDig(event.getNMSPacket());
+                    event.getPlayer().sendMessage("bd: " + bd.getDigType());
+                }
+                else if (PacketType.Play.Client.Util.isInstanceOfFlying(event.getPacketId())) {
+                    WrappedPacketInFlying f = new WrappedPacketInFlying(event.getNMSPacket());
+                    System.out.println("flying: " + f.getPosition().toString() + ", pitch and yaw: " + f.getPitch() + ", " + f.getYaw());
+                }
+            }
+
+            @Override
+            public void onPacketConfigReceive(PacketConfigReceiveEvent event) {
+                if (event.getPacketId() == PacketType.Play.Client.CUSTOM_PAYLOAD) {
+                    WrappedPacketInCustomPayload cp = new WrappedPacketInCustomPayload(event.getNMSPacket());
+                    String name = cp.getChannelName();
+                    System.out.println("name: " + name);
+                    System.out.println("Data: " + ((new String(cp.getData(), StandardCharsets.UTF_8))));
                 }
             }
 
@@ -60,12 +98,12 @@ public class PacketEventsPlugin extends JavaPlugin {
             public void onPacketPlaySend(PacketPlaySendEvent event) {
                 if (PacketType.Play.Server.Util.isInstanceOfEntity(event.getPacketId())) {
                     WrappedPacketOutEntity entity = new WrappedPacketOutEntity(event.getNMSPacket());
-                    System.out.println("en: " + entity.getEntityId() + ", delta x: " + entity.getDeltaX()
-                            + ", delta y: " + entity.getDeltaY() + ", delta z: " + entity.getDeltaZ());
                 } else if (event.getPacketId() == PacketType.Play.Server.ENTITY_EFFECT) {
                     WrappedPacketOutEntityEffect eff = new WrappedPacketOutEntityEffect(event.getNMSPacket());
+                    //TODO Broken on 1.20.5 eff.setEffectId(eff.getEffectId());
                     System.out.println("eff: " + eff.getEffectId() + ", ampl: " + eff.getAmplifier() + ", dur:" + eff.getDuration());
-
+                } else if (event.getPacketId() == PacketType.Play.Server.ENTITY_VELOCITY) {
+                    WrappedPacketOutEntityVelocity ev = new WrappedPacketOutEntityVelocity(event.getNMSPacket());
                 }
             }
         });*/
