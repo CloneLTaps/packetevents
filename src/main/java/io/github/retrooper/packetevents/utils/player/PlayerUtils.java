@@ -19,6 +19,7 @@
 package io.github.retrooper.packetevents.utils.player;
 
 import io.github.retrooper.packetevents.PacketEvents;
+import io.github.retrooper.packetevents.packettype.PacketWrapper;
 import io.github.retrooper.packetevents.packetwrappers.api.SendableWrapper;
 import io.github.retrooper.packetevents.packetwrappers.play.out.blockchange.WrapperPlayServerBlockChange;
 import io.github.retrooper.packetevents.utils.gameprofile.GameProfileUtil;
@@ -30,6 +31,7 @@ import io.github.retrooper.packetevents.utils.versionlookup.VersionLookupUtils;
 import io.github.retrooper.packetevents.utils.versionlookup.v_1_7_10.SpigotVersionLookup_1_7;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import net.minecraft.server.v1_8_R3.PacketDataSerializer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import java.net.InetSocketAddress;
@@ -236,8 +238,18 @@ public final class PlayerUtils {
         packet.prepareForSend();
 
         if(isOpen(channel)) {
-            ByteBuf buf = packet.buffer;
+            final ByteBuf buf = packet.buffer;
+
             channel.writeAndFlush(buf);
+        }
+    }
+
+    public void receivePacket(Player player, PacketDataSerializer buf) {
+        final Channel channel = (Channel) getChannel(player);
+        if(channel == null) return;
+
+        if(isOpen(channel)) {
+            channel.pipeline().context("splitter").fireChannelRead(buf);
         }
     }
 
